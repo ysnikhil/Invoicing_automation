@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 pd.set_option('display.max_columns',None)
 pd.set_option('display.expand_frame_repr', False)
-df = pd.read_excel(r"E:\Nikhil\automation\invoicing\vms_intermediate_sheet.xlsx", header=0)
+df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_intermediate_sheet.xlsx", header=0)
 
 df = df.set_index('Calculation')
 df = df.append(pd.Series(name='final_output'))
@@ -51,7 +51,7 @@ def fill_missing(x):
     if hours_counter == 0:
         x['highlight_flag'] = 1
     else:
-        x['highlight_flag'] = 1
+        x['highlight_flag'] = 0
 
     # Find the NaN values and assign VMS hours from top to bottom. Assign 0, if the vms_pending_hours reaches 0
     for var in x.index:
@@ -67,6 +67,7 @@ def fill_missing(x):
 
 df=df.groupby('vms_week').apply(fill_missing)
 
-# Finally
+# Below will make the vms_pending_hours equal to 0. Note running it, as it gives how much hours were not
+# calculated correctly
 # df['vms_pending_hours'] = df['vms_hours'] - df.groupby('vms_week').final_output.transform('sum')
 print (df[df['vms_week'] == '4/12'])
