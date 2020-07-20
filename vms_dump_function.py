@@ -8,7 +8,7 @@ pd.set_option('display.max_rows', None)
 
 vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.xlsx", header=0, sheet_name='Sheet2')
 vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
-vmsdump_df = vmsdump_df[['WeekEnding', 'Reg Hours', 'OT Hours']]  #Dropped the unused columns
+# vmsdump_df = vmsdump_df[['WeekEnding', 'Reg Hours', 'OT Hours']]  #Dropped the unused columns
 working_hrs_per_day = 8
 print(vmsdump_df)
 
@@ -56,7 +56,8 @@ def create_default_calender(racf_id,start_date,end_date):
 
 # Reads the VMS Dump and create a pandas DataFrame with needed columns
 def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_index,racf_id,start_date,end_date):
-    vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df,how='left',on=['WeekEnding'])
+    vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df[['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
+
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
     vmsdump_user_df[['Reg Hours','OT Hours']] = vmsdump_user_df[['Reg Hours','OT Hours']].fillna(0) #Replace NaN with 0
     vmsdump_user_df['vms_pending_hours'] = vmsdump_user_df['Reg Hours'] + vmsdump_user_df['OT Hours']  #Created a new column for keeping VMS hours counter

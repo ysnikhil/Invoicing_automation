@@ -70,4 +70,5 @@ df=df.groupby('vms_week').apply(fill_missing)
 # Below will make the vms_pending_hours equal to 0. Note running it, as it gives how much hours were not
 # calculated correctly
 # df['vms_pending_hours'] = df['vms_hours'] - df.groupby('vms_week').final_output.transform('sum')
-print (df[df['vms_week'] == '4/12'])
+print (df[df['vms_week'] == '4/5'])
+# print(df)
