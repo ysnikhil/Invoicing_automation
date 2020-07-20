@@ -50,13 +50,14 @@ def create_default_calender(racf_id,start_date,end_date):
     return vms_generated_calndr_df
 
 
-
 # Reads the VMS Dump and create a pandas DataFrame with needed columns
 def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_index,racf_id,start_date,end_date):
     # Merge the VMS generated DataFrame which has the correct start and end Date with
     # the input VMS dump DF. This might have more or less weeks as compared to required dates.
     vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
     print(vmsdump_user_df)
+
+    # Add columns which would be required for the calculations of the VMS DUMP
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
     vmsdump_user_df[['Reg Hours','OT Hours']] = vmsdump_user_df[['Reg Hours','OT Hours']].fillna(0) #Replace NaN with 0
     vmsdump_user_df['vms_pending_hours'] = vmsdump_user_df['Reg Hours'] + vmsdump_user_df['OT Hours']  #Created a new column for keeping VMS hours counter
