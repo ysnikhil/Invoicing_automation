@@ -52,7 +52,6 @@ def create_default_calender(racf_id,start_date,end_date):
 
 
 
-
 # Reads the VMS Dump and create a pandas DataFrame with needed columns
 def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_index,racf_id,start_date,end_date):
     vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
@@ -66,7 +65,7 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_inde
     # As the resample method doesn't expand the last entry till the end, so we have to add another duplicate last row for the same.
     vmsdump_user_df = vmsdump_user_df.append(vmsdump_user_df.iloc[-1])  #appends the last row again
     vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('vms_WeekStarting')] = vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('WeekEnding')]
-    vmsdump_user_df = vmsdump_user_df.reset_index().set_index('vms_WeekStarting').resample('D').ffill().reset_index().set_index('RACF ID')
+    vmsdump_user_df = vmsdump_user_df.set_index('vms_WeekStarting').resample('D').ffill().set_index('RACF ID')
 
     print(vmsdump_user_df)
 
