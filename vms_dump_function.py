@@ -8,9 +8,8 @@ pd.set_option('display.max_rows', None)
 
 vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.xlsx", header=0, sheet_name='Sheet2')
 vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
-# vmsdump_df = vmsdump_df[['WeekEnding', 'Reg Hours', 'OT Hours']]  #Dropped the unused columns
 working_hrs_per_day = 8
-# print(vmsdump_df)
+print(vmsdump_df)
 
 # Function to read the excel in openpyxl and then transfer the data into a Pandas DataFrame
 def load_workbook_range(range_string, ws):
@@ -54,6 +53,8 @@ def create_default_calender(racf_id,start_date,end_date):
 
 # Reads the VMS Dump and create a pandas DataFrame with needed columns
 def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_index,racf_id,start_date,end_date):
+    # Merge the VMS generated DataFrame which has the correct start and end Date with
+    # the input VMS dump DF. This might have more or less weeks as compared to required dates.
     vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
     print(vmsdump_user_df)
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
