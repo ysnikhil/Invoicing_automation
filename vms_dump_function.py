@@ -34,17 +34,18 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_inde
 
     # Add columns which would be required for the calculations of the VMS DUMP
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
-    vmsdump_user_df[['Reg Hours','OT Hours']] = vmsdump_user_df[['Reg Hours','OT Hours']].fillna(0) #Replace NaN with 0
+    vmsdump_user_df[['Reg Hours','OT Hours']] = vmsdump_user_df[['Reg Hours','OT Hours']].fillna(0).astype(int) #Replace NaN with 0
     vmsdump_user_df['vms_pending_hours'] = vmsdump_user_df['Reg Hours'] + vmsdump_user_df['OT Hours']  #Created a new column for keeping VMS hours counter
-    vmsdump_user_df['vms_working_days'] = (vmsdump_user_df['Reg Hours'] + vmsdump_user_df['OT Hours']) / working_hrs_per_day
+    vmsdump_user_df['vms_working_days'] = ((vmsdump_user_df['Reg Hours'] + vmsdump_user_df['OT Hours']) / working_hrs_per_day).astype(int)
 
     # Below code resample the VMS Weekly data into Daily data.
     # As the resample method doesn't expand the last entry till the end, so we have to add another duplicate last row for the same.
     vmsdump_user_df = vmsdump_user_df.append(vmsdump_user_df.iloc[-1])  #appends the last row again
     vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('vms_WeekStarting')] = vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('WeekEnding')]
     vmsdump_user_df = vmsdump_user_df.set_index('vms_WeekStarting').resample('D').ffill().reset_index().set_index('RACF ID')
+    vmsdump_user_df['weekday_flag'] = vmsdump_user_df['vms_WeekStarting'].apply(lambda x: x.date().weekday()<=4 if 1 else 0).astype(int)
+    vmsdump_user_df['weekend_flag'] = vmsdump_user_df['vms_WeekStarting'].apply(lambda x: x.date().weekday()>4 if 1 else 0).astype(int)
 
-    vmsdump_user_df['weekday_flag'] = vmsdump_user_df['vms_WeekStarting'].apply(lambda x: x.date().weekday()<=4 if 1 else 0)
     # print(vmsdump_user_df[])
 
 
