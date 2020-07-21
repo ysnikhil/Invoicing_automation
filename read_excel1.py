@@ -1,5 +1,5 @@
 from openpyxl import load_workbook
-# from openpyxl.utils import get_column_interval
+import datetime
 import pandas as pd
 import re
 
@@ -27,12 +27,12 @@ def load_workbook_range(range_string, ws):
 
 start_index = 18
 end_index = 37
+main_range_actual_start = datetime.datetime(2020, 6, 1, 0, 0)
+main_range_actual_end = datetime.datetime(2020, 6, 28, 0, 0)
 
-def read_leave_tracker(start_index,end_index):
-    # print(start_index-1, end_index)
+def read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end):
     df=pd.read_excel(r'E:\Nikhil\automation\Invoicing_automation\Leave_Tracker_Marketing_Finance_2020.xlsx',
     sheet_name='Tracker',skiprows=start_index-2, nrows=(end_index-start_index+1))
-    # df.columns = df.columns.str.strip()
     df=df.set_index('RACF ID')
     df=df.loc[:,'Resource Names ':]
     df=df.reset_index()
@@ -40,7 +40,8 @@ def read_leave_tracker(start_index,end_index):
     df=df.set_index('RACF ID')
     df=df.T
     df.index = pd.to_datetime(df.index)
+    df=df.loc[main_range_actual_start:main_range_actual_end]
     return df
 
-print(read_leave_tracker(start_index,end_index))
+print(read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end))
 # print(df)

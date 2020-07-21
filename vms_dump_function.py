@@ -1,6 +1,4 @@
 import pandas as pd
-from openpyxl import load_workbook
-import re
 
 pd.set_option('display.max_columns',None)
 pd.set_option('display.expand_frame_repr', False)
@@ -10,29 +8,6 @@ vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.
 vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
 working_hrs_per_day = 8
 print(vmsdump_df)
-
-# Function to read the excel in openpyxl and then transfer the data into a Pandas DataFrame
-def load_workbook_range(range_string, ws):
-    col_start, col_end = re.findall("[A-Z]+", range_string)
-
-    data_rows = []
-    for row in ws[range_string]:
-        data_rows.append([cell.value for cell in row])
-
-    # return pd.DataFrame(data_rows, columns=get_column_interval(col_start, col_end))
-    return pd.DataFrame(data_rows)
-
-leave_tracker_full = load_workbook(filename=r'E:\Nikhil\automation\invoicing\Leave_Tracker_Marketing_Finance_2020.xlsx',
-                   read_only=True)
-active_sheet = leave_tracker_full['Tracker']
-leave_tracker_df=load_workbook_range('C17:JU37', active_sheet)  #Pass the range of the data to be read from openpyxl to Pandas
-
-# Make the First row of the DataFrame as the header. This is not directly achievable with the current function,
-# as we need a way to read the first row in openpyxl and pass it as columns. To be optimized later.
-header=leave_tracker_df.iloc[0]
-leave_tracker_df=leave_tracker_df.iloc[1:]
-leave_tracker_df.columns=header
-# print(leave_tracker_df)
 
 # ===================================================================================================================
 # Reads the user Input and then generates the calender days expected for the current month Invoicing.
@@ -67,9 +42,14 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_inde
     # As the resample method doesn't expand the last entry till the end, so we have to add another duplicate last row for the same.
     vmsdump_user_df = vmsdump_user_df.append(vmsdump_user_df.iloc[-1])  #appends the last row again
     vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('vms_WeekStarting')] = vmsdump_user_df.iloc[-1, vmsdump_user_df.columns.get_loc('WeekEnding')]
-    vmsdump_user_df = vmsdump_user_df.set_index('vms_WeekStarting').resample('D').ffill().set_index('RACF ID')
+    vmsdump_user_df = vmsdump_user_df.set_index('vms_WeekStarting').resample('D').ffill().reset_index().set_index('RACF ID')
+
+    vmsdump_user_df['weekday_flag'] = vmsdump_user_df['vms_WeekStarting'].apply(lambda x: x.date().weekday()<=4 if 1 else 0)
+    # print(vmsdump_user_df[])
+
 
     print(vmsdump_user_df)
+    # print(vmsdump_user_df.to_csv())
 
 vms_generated_calndr_df=create_default_calender('abcd1','2020-03-30','2020-04-26')
 generate_vms_sheet('abcd1',vms_generated_calndr_df)
