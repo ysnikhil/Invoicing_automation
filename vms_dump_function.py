@@ -7,7 +7,7 @@ pd.set_option('display.max_rows', None)
 vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.xlsx", header=0, sheet_name='Sheet2')
 vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
 working_hrs_per_day = 8
-print(vmsdump_df)
+# print(vmsdump_df)
 
 # ===================================================================================================================
 # Reads the user Input and then generates the calender days expected for the current month Invoicing.
@@ -20,7 +20,7 @@ def create_default_calender(racf_id,start_date,end_date):
     date_index=pd.date_range(start=start_date, end=end_date,freq='W')
     vms_generated_calndr_df=pd.DataFrame(date_index, columns=['WeekEnding'])
     vms_generated_calndr_df['RACF ID'] = racf_id
-    print (vms_generated_calndr_df)
+    # print (vms_generated_calndr_df)
 
     return vms_generated_calndr_df
 
@@ -30,7 +30,7 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_inde
     # Merge the VMS generated DataFrame which has the correct start and end Date with
     # the input VMS dump DF. This might have more or less weeks as compared to required dates.
     vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
-    print(vmsdump_user_df)
+    # print(vmsdump_user_df)
 
     # Add columns which would be required for the calculations of the VMS DUMP
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
