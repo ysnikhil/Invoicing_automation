@@ -103,14 +103,10 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df):    #(leave_tracker_inde
 vms_generated_calndr_df=create_default_calender('a131','2020-03-30','2020-04-26')
 vmsdump_leave_merged_df = generate_vms_sheet('a131',vms_generated_calndr_df)
 # print(vmsdump_leave_merged_df)
-print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-26'])
+# print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-26'])
 
-# vmsdump_leave_merged_df =vmsdump_leave_merged_df.set_index('WeekEnding')
 a=vmsdump_leave_merged_df['leave_hours']
 b=vmsdump_leave_merged_df['leave_working_days']
-print(a)
-print(b)
-print (np.divide(a, b,out=np.zeros_like(a), where=b!=0))
 
 # This is to handle VMS > Leave Tracker days
 # First set handles the weekdays and Second set handles the weekend.
@@ -121,8 +117,8 @@ if (vmsdump_leave_merged_df['vms_working_days'] > vmsdump_leave_merged_df['leave
     vmsdump_leave_merged_df.loc[ (vmsdump_leave_merged_df['vms_working_days'] > vmsdump_leave_merged_df['leave_working_days']) & (vmsdump_leave_merged_df['weekend_flag'] == 1) & (vmsdump_leave_merged_df['leave_hours'] > 0) & (vmsdump_leave_merged_df['leave_working_wkenddays'] > 0) & (vmsdump_leave_merged_df['vms_pending_hours'] > 0), 'final_output' ] = np.divide(a, b,out=np.zeros_like(a), where=b!=0)
     vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
 
-    vmsdump_leave_merged_df.loc[ (vmsdump_leave_merged_df['vms_working_days'] > vmsdump_leave_merged_df['leave_working_days']) & (vmsdump_leave_merged_df['weekend_flag'] == 1) & (vmsdump_leave_merged_df['leave_hours'] == 0) & (vmsdump_leave_merged_df['leave_working_wkenddays'] == 0), 'final_output' ] = 0
-    vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
+    # vmsdump_leave_merged_df.loc[ (vmsdump_leave_merged_df['vms_working_days'] > vmsdump_leave_merged_df['leave_working_days']) & (vmsdump_leave_merged_df['weekend_flag'] == 1) & (vmsdump_leave_merged_df['leave_hours'] == 0) & (vmsdump_leave_merged_df['leave_working_wkenddays'] == 0), 'final_output' ] = 0
+    # vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
 
 # This is to handle if VMS days = Leave Tracker days
 # First set handles the weekdays and Second set handles the weekend.
@@ -148,8 +144,7 @@ if (vmsdump_leave_merged_df['vms_working_days'] < vmsdump_leave_merged_df['leave
     vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
 
 # To make the final_output equal to 0, if the vms_pending_hours is Zero
-if (vmsdump_leave_merged_df['vms_pending_hours'].sum() == 0):
-    vmsdump_leave_merged_df.loc[(vmsdump_leave_merged_df['vms_pending_hours'] == 0) & (vmsdump_leave_merged_df['final_output'].isna()), 'final_output'] = 0
+vmsdump_leave_merged_df.loc[(vmsdump_leave_merged_df['vms_pending_hours'] == 0) & (vmsdump_leave_merged_df['final_output'].isna()), 'final_output'] = 0
 
 
 # Below logic is to fill the values for those dates where we don't have the clarity on the VMS hours
@@ -181,5 +176,5 @@ vmsdump_leave_merged_df=vmsdump_leave_merged_df.groupby('WeekEnding').apply(fill
 # Below will make the vms_pending_hours equal to 0. Note running it, as it gives how much hours were not
 # calculated correctly
 # vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
-# print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '4/12'])
-print(vmsdump_leave_merged_df)
+print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-05'])
+# print(vmsdump_leave_merged_df.T)
