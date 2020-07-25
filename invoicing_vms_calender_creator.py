@@ -11,6 +11,9 @@ df = df.rename_axis('Days')
 df = df.rename_axis('',axis=1)
 a=df['leave_hours']
 b=df['leave_working_days']
+print(a)
+print(b)
+print (np.divide(a, b,out=np.zeros_like(a), where=b!=0))
 
 # This is to handle VMS > Leave Tracker days
 # First set handles the weekdays and Second set handles the weekend.
