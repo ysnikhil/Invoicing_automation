@@ -15,7 +15,17 @@ main_range_actual_end = datetime.datetime(2020, 4, 26, 0, 0)
 working_hrs_per_day = 8
 working_day_strings = 'working|w-b'
 racf_id='a127'
+resource_name='Aparna Mohandas'
 
+# ===================================================================================================================
+# Read the entire VMS dump
+# ===================================================================================================================
+def read_vms_dump():
+    # Reads the VMS Dump. Should be modified as per the user input values.
+    vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.xlsx", header=0, sheet_name='Sheet2')
+    vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
+
+    return vmsdump_df
 # ===================================================================================================================
 # This function reads the Leave Tracker and creates a Dataframe which contains the data from the
 # given start and end date range (main range). It contains data for all the users and using the function
@@ -56,9 +66,7 @@ def create_default_calender(racf_id,start_date,end_date):
 # a single dataframe.
 # ===================================================================================================================
 def create_vms_sheet(racf_id,vms_generated_calndr_df):    #(racf_id,vms_generated_calndr_df,VMS_dump_sheet)
-    # Reads the VMS Dump. Should be modified as per the user input values.
-    vmsdump_df = pd.read_excel(r"E:\Nikhil\automation\Invoicing_automation\vms_dump.xlsx", header=0, sheet_name='Sheet2')
-    vmsdump_df = vmsdump_df.set_index('RACF ID')    #Setting index to Racf id to make calculations easier
+    vmsdump_df = read_vms_dump()    # Call the VMS dump reader function
 
     # Merge the VMS generated DataFrame which has the correct start and end Date with
     # the input VMS dump DF. This might have more or less weeks as compared to required dates.
@@ -190,10 +198,22 @@ def generate_vms_sheet():
 
     vmsdump_leave_merged_df=vmsdump_leave_merged_df.groupby('WeekEnding').apply(fill_missing)
 
+    reorder_cols=['vms_WeekStarting', 'WeekEnding', 'RACF ID', 'weekday_flag','weekend_flag','Reg Hours', 'OT Hours',
+       'leave_working_wkenddays', 'leave_working_wkdays', 'vms_hours', 'leave_hours', 'vms_working_days',
+        'leave_working_days', 'vms_leave_diff', 'vms_pending_hours','final_output', 'highlight_flag']
+    vmsdump_leave_merged_df = vmsdump_leave_merged_df[reorder_cols]
+    vmsdump_leave_merged_df = vmsdump_leave_merged_df.set_index('vms_WeekStarting')
+    vmsdump_leave_merged_df['WeekEnding'] = vmsdump_leave_merged_df['WeekEnding'].dt.date
+    vmsdump_leave_merged_df.index = vmsdump_leave_merged_df.index.date
+    print (vmsdump_leave_merged_df)
     # Below will make the vms_pending_hours equal to 0. Note running it, as it gives how much hours were not calculated correctly
     # vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
-    print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-05'])
-    # print(vmsdump_leave_merged_df.T)
+
+    # print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-05'])
+
+    (vmsdump_leave_merged_df
+    .to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_generated.xlsx', sheet_name=racf_id,freeze_panes=(1,2)))
+
 
 # generate_vms_sheet(start_index,end_index,main_range_actual_start,main_range_actual_end,racf_id,working_hrs_per_day,VMS_dump_sheet)
 # generate_vms_sheet(18,37,datetime.datetime(2020, 3, 30, 0, 0),datetime.datetime(2020, 4, 26, 0, 0),'a131',8)
