@@ -90,12 +90,12 @@ def create_vms_sheet(racf_id,vms_generated_calndr_df):    #(racf_id,vms_generate
 
     # Call the read_leave_tracker fuction to pull the leave tracker dataframe and then compute working hours
     leave_tracker_df = read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end)
-    leave_tracker_df = leave_tracker_df.loc[:,[racf_id,'WeekEnding']]
+    leave_tracker_df = leave_tracker_df[[racf_id,'WeekEnding']]
     leave_tracker_df[racf_id].fillna(value='working',inplace=True) #Converting all the blank values as working, as if anyday is blank then it is assumed that it is a normal working day.
     leave_tracker_df[racf_id] = leave_tracker_df[racf_id].transform(lambda x : x.str.contains(working_day_strings,flags=re.IGNORECASE,regex=True)).astype(float)  #Used the pattern match to count the working|w-b as working days, rest all the comments are assumed as 0 working hours.
     leave_tracker_df[racf_id] = leave_tracker_df[racf_id].replace(to_replace=1, value=working_hrs_per_day)    #Replace the boolean value True/1 as the normal working hours as others are converted as 0 in the previous step.
     leave_tracker_df[racf_id] = leave_tracker_df.groupby('WeekEnding')[racf_id].transform(lambda x: x.replace(working_hrs_per_day,x.sum()) )  #Sums up the working hours for each day and replaces it with the sum of the values at per week level.
-    print (leave_tracker_df)
+    # print (leave_tracker_df)
 
     # Functions to calculate the leave working weekdays and weekends from the leave tracker df.
     def calc_leave_working_days(df,racf_id):
@@ -171,7 +171,6 @@ def generate_vms_sheet():
     # To make the final_output equal to 0, if the vms_pending_hours is Zero
     vmsdump_leave_merged_df.loc[(vmsdump_leave_merged_df['vms_pending_hours'] == 0) & (vmsdump_leave_merged_df['final_output'].isna()), 'final_output'] = 0
 
-
     # Below logic is to fill the values for those dates where we don't have the clarity on the VMS hours
     # The function takes the groups on VMS WEEK and then distributes the vms_pending_hours.
     # If the pending hours are reduced to 0 and still days are left, then those days will be get 0 hours.
@@ -198,6 +197,9 @@ def generate_vms_sheet():
 
     vmsdump_leave_merged_df=vmsdump_leave_merged_df.groupby('WeekEnding').apply(fill_missing)
 
+    # The below module resets the columns for easier readability and writes the intermediate data
+    # into a sheet. Each sheet will have all the details related to 1 teammate. This is not meant for the Users
+    # instead it will help the developers to debug any issue that comes for any teammate.
     reorder_cols=['vms_WeekStarting', 'WeekEnding', 'RACF ID', 'weekday_flag','weekend_flag','Reg Hours', 'OT Hours',
        'leave_working_wkenddays', 'leave_working_wkdays', 'vms_hours', 'leave_hours', 'vms_working_days',
         'leave_working_days', 'vms_leave_diff', 'vms_pending_hours','final_output', 'highlight_flag']
@@ -206,15 +208,58 @@ def generate_vms_sheet():
     vmsdump_leave_merged_df['WeekEnding'] = vmsdump_leave_merged_df['WeekEnding'].dt.date
     vmsdump_leave_merged_df.index = vmsdump_leave_merged_df.index.date
     print (vmsdump_leave_merged_df)
-    # Below will make the vms_pending_hours equal to 0. Note running it, as it gives how much hours were not calculated correctly
-    # vmsdump_leave_merged_df['vms_pending_hours'] = vmsdump_leave_merged_df['vms_hours'] - vmsdump_leave_merged_df.groupby('WeekEnding').final_output.transform('sum')
-
-    # print (vmsdump_leave_merged_df[vmsdump_leave_merged_df['WeekEnding'] == '2020-04-05'])
-
     (vmsdump_leave_merged_df
-    .to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_generated.xlsx', sheet_name=racf_id,freeze_panes=(1,2)))
+    .to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_intermediate_generated.xlsx', sheet_name=racf_id,freeze_panes=(1,2)))
 
+    # The below will create the final template that is required by the USER.
+    leave_tracker_df = read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end)
+    # Created a new data frame for the final values.
+    vmsdump_leave_final_df = pd.merge(left=vmsdump_leave_merged_df.reset_index()[['index','final_output','highlight_flag']], right=leave_tracker_df[racf_id], how='left', left_on='index', right_on=leave_tracker_df.index.date)
+    (vmsdump_leave_final_df.rename(columns={'index' : 'Days',
+                                            'final_output' : 'VMS Hours',
+                                            racf_id : 'Leave Hours'}, inplace=True))
+    vmsdump_leave_final_df.set_index('Days', inplace=True)
+    vmsdump_leave_final_df = vmsdump_leave_final_df[['VMS Hours','Leave Hours','highlight_flag']]
+    vmsdump_leave_final_df = vmsdump_leave_final_df.T   #Transpose the results as per the required format.
+    vmsdump_leave_final_df['RACF ID'] = racf_id
+    vmsdump_leave_final_df['Teammate'] = resource_name
+    vmsdump_leave_final_df.reset_index(inplace=True)
+    vmsdump_leave_final_df.set_index('RACF ID',inplace=True)
+    # vmsdump_leave_final_df.columns.name = 'RACF ID'
+    # vmsdump_leave_final_df.index.name = ''
+    vmsdump_leave_final_df.rename(columns={'index': 'Leave Type'}, inplace=True)
+    temp_cols= vmsdump_leave_final_df.columns.tolist()
+    temp_cols=temp_cols[-1:] + temp_cols[:-1]
+    vmsdump_leave_final_df = vmsdump_leave_final_df[temp_cols]
+    print (vmsdump_leave_final_df)
+    vmsdump_leave_final_df.to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_final_generated.xlsx', sheet_name=racf_id,freeze_panes=(1,3))
 
+    # Highlighting the DataFrame. For styling we need the highlight_flag column, but we cannot keep it in
+    # final df, as we don't want that in our output excel sheet. So we split our dataframe where we
+    # take the last row in a seperate DF and pass it on to styler seperately only for highlights.
+    # Do note, after using styling property, none of DF property will work. Only the styling methods are
+    # available to the DF. So we have to manipulate all the data before styling.
+    vmsdump_leave_final_df=vmsdump_leave_final_df.rename_axis('RACF ID').reset_index()  #Styler function can't run on non unique row index.
+    vmsdump_leave_final_styling_df=vmsdump_leave_final_df.iloc[:-1]     #Slicing the last row in a seperate DF.
+    # print (vmsdump_leave_final_styling_df)
+
+    # Below function will highlight the VMS hours values as yellow wherever the highlight flag is 1.
+    def styling(func_df,main_df):
+        y='background-color: yellow'    # Assigns the yellow color in the format of CSS which is needed by Pandas Styler.
+        func_df = func_df.T # Transposing the DF created for this function for easier calculations.
+        main_df = main_df.T # Transposing the original DF created for easier calculations.
+        main_df.loc[(main_df[2]==1),0] = y  # Use main DF, highlight column.
+        main_df.loc[(main_df[2]!=1),0] = '' # VMS row styler is set as blank string as we don't want any styling for rest.
+        func_df1=pd.DataFrame('',index=func_df.index, columns=func_df.columns)  #We create empty DF with same index and columns as our input, so that we can pass on just the styling and rest is blank.
+        func_df1[0]=main_df[0]      #Assign the main df vms column styling  to func df vms column
+        func_df1=func_df1.T     #Final transpose to bring it back to its original structure.
+        print (func_df1)
+        return func_df1
+
+    styled = vmsdump_leave_final_styling_df.style.apply(styling, axis=None, main_df=vmsdump_leave_final_df)
+    styled.to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_final_generated_styling.xlsx', engine='openpyxl', index=False)
+
+    # print(temp_cols)
 # generate_vms_sheet(start_index,end_index,main_range_actual_start,main_range_actual_end,racf_id,working_hrs_per_day,VMS_dump_sheet)
 # generate_vms_sheet(18,37,datetime.datetime(2020, 3, 30, 0, 0),datetime.datetime(2020, 4, 26, 0, 0),'a131',8)
 generate_vms_sheet()
