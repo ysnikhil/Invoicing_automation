@@ -60,14 +60,12 @@ def create_default_calender(racf_id,main_range_actual_start,main_range_actual_en
     # print (vms_generated_calndr_df)
     return vms_generated_calndr_df
 
-# ===================================================================================================================
-# Reads the input VMS Dump and create a pandas DataFrame with needed variable columns for calculations.
-# This functions calls the read_leave_tracker function and merges the VMS DUMP df with it to bring all the values in
+# ===============================================================================================================================
+# Merges the Default calender with the VMS dump data and create a pandas DataFrame with needed variable columns for calculations.
+# This functions uses the read_leave_tracker function and merges the VMS DUMP df with it to bring all the values in
 # a single dataframe.
-# ===================================================================================================================
+# ===============================================================================================================================
 def create_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_df,leave_tracker_df):    #(racf_id,vms_generated_calndr_df,VMS_dump_sheet)
-    # vmsdump_df = read_vms_dump()    # Call the VMS dump reader function
-
     # Merge the VMS generated DataFrame which has the correct start and end Date with
     # the input VMS dump DF. This might have more or less weeks as compared to required dates.
     vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
@@ -123,7 +121,7 @@ def create_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_df,leave_tracker_df
 # Input - start_index,end_index,main_range_actual_start,main_range_actual_end,racf_id,working_hrs_per_day,VMS_dump_sheet
 # Output - VMS Output for each user.
 # ===================================================================================================================
-def generate_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_leave_merged_df,leave_tracker_df,resource_name):
+def generate_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_leave_merged_df,leave_tracker_df,resource_name,appended_final_df_for_styling):
     # print(vmsdump_leave_merged_df)
 
     a=vmsdump_leave_merged_df['leave_hours']
@@ -225,30 +223,39 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_leave_merged_df,l
     temp_cols= vmsdump_leave_final_df.columns.tolist()
     temp_cols=temp_cols[-1:] + temp_cols[:-1]
     vmsdump_leave_final_df = vmsdump_leave_final_df[temp_cols]
+    appended_final_df_for_styling = appended_final_df_for_styling.append(vmsdump_leave_final_df)
     print (vmsdump_leave_final_df)
+    print (appended_final_df_for_styling)
+    return appended_final_df_for_styling
 
+def gen_styled_sheet(appended_final_df_for_styling):
     # Highlighting the DataFrame. For styling we need the highlight_flag column, but we cannot keep it in
     # final df, as we don't want that in our output excel sheet. So we split our dataframe where we
     # take the last row in a seperate DF and pass it on to styler seperately only for highlights.
     # Do note, after using styling property, none of DF property will work. Only the styling methods are
     # available to the DF. So we have to manipulate all the data before styling.
-    vmsdump_leave_final_df=vmsdump_leave_final_df.rename_axis('RACF ID').reset_index()  #Styler function can't run on non unique row index.
-    vmsdump_leave_final_styling_df=vmsdump_leave_final_df.iloc[:-1]     #Slicing the last row in a seperate DF.
-    # print (vmsdump_leave_final_styling_df)
+    appended_final_df_for_styling=appended_final_df_for_styling.rename_axis('RACF ID').reset_index()  #Styler function can't run on non unique row index.
+    print (appended_final_df_for_styling)
+    vmsdump_leave_final_styling_df=appended_final_df_for_styling.loc[appended_final_df_for_styling['Leave Type']!='highlight_flag']     #Slicing the last row in a seperate DF.
+    # vmsdump_leave_final_styling_df.reset_index(inplace=True)
+    print (vmsdump_leave_final_styling_df)
 
     # Below function will highlight the VMS hours values as yellow wherever the highlight flag is 1.
-    def styling(func_df,main_df):
+    def styling(func_df,main_df,):
         y='background-color: yellow'    # Assigns the yellow color in the format of CSS which is needed by Pandas Styler.
         func_df = func_df.T # Transposing the DF created for this function for easier calculations.
         main_df = main_df.T # Transposing the original DF created for easier calculations.
-        main_df.loc[(main_df[2]==1),0] = y  # Use main DF, highlight column.
-        main_df.loc[(main_df[2]!=1),0] = '' # VMS row styler is set as blank string as we don't want any styling for rest.
+        # print (main_df)
         func_df1=pd.DataFrame('',index=func_df.index, columns=func_df.columns)  #We create empty DF with same index and columns as our input, so that we can pass on just the styling and rest is blank.
-        func_df1[0]=main_df[0]      #Assign the main df vms column styling  to func df vms column
+        for var in range(len(main_df.columns)//3):      # Implement the styling for each user using loop.
+            vms_hours_column = var*3    # Find the VMS column for each user.
+            highlight_flag_column=(var*3) + 2   # Find the highlight flag column for each user.
+            main_df.loc[(main_df[highlight_flag_column]==1),vms_hours_column] = y  # Use main DF, highlight column.
+            main_df.loc[(main_df[highlight_flag_column]!=1),vms_hours_column] = '' # VMS row styler is set as blank string as we don't want any styling for rest.
+            func_df1[vms_hours_column]=main_df[vms_hours_column]      #Assign the main df vms column styling  to func df vms column
         func_df1=func_df1.T     #Final transpose to bring it back to its original structure.
         print (func_df1)
         return func_df1
 
-    styled = vmsdump_leave_final_styling_df.style.apply(styling, axis=None, main_df=vmsdump_leave_final_df)
-    styled.to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_final_generated_styling.xlsx', engine='openpyxl', index=False, sheet_name=racf_id,freeze_panes=(1,3))
-# generate_vms_sheet()
+    styled = vmsdump_leave_final_styling_df.style.apply(styling, axis=None, main_df=appended_final_df_for_styling)
+    styled.to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_final_generated_styling.xlsx', engine='openpyxl', sheet_name='VMS_DATA - Generated', index=False, freeze_panes=(1,3))
