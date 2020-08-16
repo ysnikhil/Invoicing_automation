@@ -34,15 +34,13 @@ def read_vms_dump():
 def read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end):
     # Taking the data from the main code and reading only the required data from the leave tracker.
     leave_tracker_df=pd.read_excel(r'E:\Nikhil\automation\Invoicing_automation\Leave_Tracker_Marketing_Finance_2020.xlsx',
-    sheet_name='Tracker',skiprows=start_index-2, nrows=(end_index-start_index+1))
-    leave_tracker_df=leave_tracker_df.set_index('RACF ID')
-    leave_tracker_df=leave_tracker_df.loc[:,'Resource Names ':] #The space in the name is due to the space in the leave t
-    leave_tracker_df=leave_tracker_df.reset_index()
-    del leave_tracker_df['Resource Names '] #Removing the resource name as it is not needed. If required, we can put this back.
-    leave_tracker_df=leave_tracker_df.set_index('RACF ID')
+    sheet_name='Tracker_backup',skiprows=start_index-2, nrows=(end_index-start_index+1))
+    leave_tracker_df=leave_tracker_df.set_index('RACF ID')  #Saves this column as it is needed. Next step will remove all unnecessary columns.
+    leave_tracker_df=leave_tracker_df.loc[:,'Resource Names ':] # This remove all the unnecessary columns till Resource Name. The space in the name is due to the space in the leave tracker.
+    del leave_tracker_df['Resource Names '] #Removing the resource name as well, as it is not needed. If required, we can put this back.
     leave_tracker_df=leave_tracker_df.T #Transposing data, as we need the calendar days as columns for easier calculations.
-    leave_tracker_df.index = pd.to_datetime(leave_tracker_df.index) #Convert the date value from leave tracker to datetime for accessing all the ready made datetime functions in pandas.
-    leave_tracker_df=leave_tracker_df.loc[main_range_actual_start:main_range_actual_end]    #Take only the required data from the leave tracker.
+    leave_tracker_df.index = pd.to_datetime(leave_tracker_df.index) #Convert the date value from leave tracker to datetimeindex for accessing all the ready made datetime functions in pandas.
+    leave_tracker_df=leave_tracker_df.loc[main_range_actual_start:main_range_actual_end]    #Take only the required data from the leave tracker. This could have been done before making dateindex as well, but just to ensure all the date is in proper datetimeindex format.
     leave_tracker_df['WeekEnding'] = leave_tracker_df.index.week
     # print (leave_tracker_df)
     return leave_tracker_df
@@ -68,7 +66,14 @@ def create_default_calender(racf_id,main_range_actual_start,main_range_actual_en
 def create_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_df,leave_tracker_df):    #(racf_id,vms_generated_calndr_df,VMS_dump_sheet)
     # Merge the VMS generated DataFrame which has the correct start and end Date with
     # the input VMS dump DF. This might have more or less weeks as compared to required dates.
-    vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
+
+    try:    # Catching the error when the RACF ID is not present in the VMS Dump
+        vmsdump_user_df = pd.merge(vms_generated_calndr_df,vmsdump_df.loc[racf_id,['WeekEnding', 'Reg Hours', 'OT Hours']],how='left',on=['WeekEnding'])
+    except KeyError:
+        print('Following Racf id is not found in VMS dump, generating default value as 0 for calculated columns.', racf_id)
+        vmsdump_user_df = vms_generated_calndr_df
+        vmsdump_user_df['Reg Hours'] = np.nan   # Assign Nan for these 2 columns as the rest would be calculated.
+        vmsdump_user_df['OT Hours'] = np.nan
 
     # Add columns which would be required for the calculations of the VMS DUMP
     vmsdump_user_df['vms_WeekStarting'] = vmsdump_user_df['WeekEnding'] + pd.offsets.Day(-6)
@@ -88,7 +93,10 @@ def create_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_df,leave_tracker_df
 
     # Call the read_leave_tracker fuction to pull the leave tracker dataframe and then compute working hours
     # leave_tracker_df = read_leave_tracker(start_index,end_index,main_range_actual_start,main_range_actual_end)
+    # try:
     leave_tracker_df = leave_tracker_df[[racf_id,'WeekEnding']]
+    # except KeyError:
+        # print('Racf id not found in VMSSkipping the racf_id,', racf_id)
     leave_tracker_df[racf_id].fillna(value='working',inplace=True) #Converting all the blank values as working, as if anyday is blank then it is assumed that it is a normal working day.
     leave_tracker_df[racf_id] = leave_tracker_df[racf_id].transform(lambda x : x.str.contains(working_day_strings,flags=re.IGNORECASE,regex=True)).astype(float)  #Used the pattern match to count the working|w-b as working days, rest all the comments are assumed as 0 working hours.
     leave_tracker_df[racf_id] = leave_tracker_df[racf_id].replace(to_replace=1, value=working_hrs_per_day)    #Replace the boolean value True/1 as the normal working hours as others are converted as 0 in the previous step.
@@ -201,7 +209,7 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_leave_merged_df,l
     vmsdump_leave_merged_df = vmsdump_leave_merged_df.set_index('vms_WeekStarting')
     vmsdump_leave_merged_df['WeekEnding'] = vmsdump_leave_merged_df['WeekEnding'].dt.date
     vmsdump_leave_merged_df.index = vmsdump_leave_merged_df.index.date
-    print (vmsdump_leave_merged_df)
+    # print (vmsdump_leave_merged_df)
     (vmsdump_leave_merged_df
     .to_excel(r'E:\Nikhil\automation\Invoicing_automation\vms_dump_intermediate_generated.xlsx', sheet_name=racf_id,freeze_panes=(1,2)))
 
@@ -224,8 +232,8 @@ def generate_vms_sheet(racf_id,vms_generated_calndr_df,vmsdump_leave_merged_df,l
     temp_cols=temp_cols[-1:] + temp_cols[:-1]
     vmsdump_leave_final_df = vmsdump_leave_final_df[temp_cols]
     appended_final_df_for_styling = appended_final_df_for_styling.append(vmsdump_leave_final_df)
-    print (vmsdump_leave_final_df)
-    print (appended_final_df_for_styling)
+    # print (vmsdump_leave_final_df)
+    # print (appended_final_df_for_styling)
     return appended_final_df_for_styling
 
 def gen_styled_sheet(appended_final_df_for_styling):
@@ -235,10 +243,10 @@ def gen_styled_sheet(appended_final_df_for_styling):
     # Do note, after using styling property, none of DF property will work. Only the styling methods are
     # available to the DF. So we have to manipulate all the data before styling.
     appended_final_df_for_styling=appended_final_df_for_styling.rename_axis('RACF ID').reset_index()  #Styler function can't run on non unique row index.
-    print (appended_final_df_for_styling)
+    # print (appended_final_df_for_styling)
     vmsdump_leave_final_styling_df=appended_final_df_for_styling.loc[appended_final_df_for_styling['Leave Type']!='highlight_flag']     #Slicing the last row in a seperate DF.
     # vmsdump_leave_final_styling_df.reset_index(inplace=True)
-    print (vmsdump_leave_final_styling_df)
+    # print (vmsdump_leave_final_styling_df)
 
     # Below function will highlight the VMS hours values as yellow wherever the highlight flag is 1.
     def styling(func_df,main_df,):
@@ -254,7 +262,7 @@ def gen_styled_sheet(appended_final_df_for_styling):
             main_df.loc[(main_df[highlight_flag_column]!=1),vms_hours_column] = '' # VMS row styler is set as blank string as we don't want any styling for rest.
             func_df1[vms_hours_column]=main_df[vms_hours_column]      #Assign the main df vms column styling  to func df vms column
         func_df1=func_df1.T     #Final transpose to bring it back to its original structure.
-        print (func_df1)
+        # print (func_df1)
         return func_df1
 
     styled = vmsdump_leave_final_styling_df.style.apply(styling, axis=None, main_df=appended_final_df_for_styling)
